@@ -1,0 +1,335 @@
+--*** FarmDB Master Script  ***--
+ 
+--** DB Creation **--
+/*
+-- DROP DATABASE IF EXISTS "FarmDB";
+
+CREATE DATABASE "FarmDB"
+    WITH 
+    OWNER = postgres
+    ENCODING = 'UTF8'
+    LC_COLLATE = 'English_United States.1252'
+    LC_CTYPE = 'English_United States.1252'
+    TABLESPACE = pg_default
+    CONNECTION LIMIT = -1;
+
+COMMENT ON DATABASE "FarmDB"
+    IS 'Database holding agricultural records for farm management'; 
+*/
+
+--** Add Extensions **--
+/*
+-- DROP EXTENSION postgis;
+-- DROP EXTENSION postgis_raster;
+-- DROP EXTENSION postgis_topology;
+
+CREATE EXTENSION IF NOT EXISTS postgis
+    SCHEMA public
+    VERSION "3.1.4";
+
+CREATE EXTENSION IF NOT EXISTS postgis_raster
+    SCHEMA public
+    VERSION "3.1.4";
+
+CREATE EXTENSION IF NOT EXISTS postgis_topology
+    SCHEMA topology
+    VERSION "3.1.4";
+*/
+
+--* Reset db by droping all tables*--
+DROP TABLE IF EXISTS "CompostTemps";
+DROP TABLE IF EXISTS "CompostTurn";
+DROP TABLE IF EXISTS "FertilitySpread";
+DROP TABLE IF EXISTS "FertilityMix";
+DROP TABLE IF EXISTS "MaterialMix";
+DROP TABLE IF EXISTS "FertilityMaterial";
+DROP TABLE IF EXISTS "PlantHarvest";
+DROP TABLE IF EXISTS "PlantPressure";
+DROP TABLE IF EXISTS "PlantingEvent";
+DROP TABLE IF EXISTS "SpeciesMix";
+DROP TABLE IF EXISTS "SeedMix";
+DROP TABLE IF EXISTS "Species";
+DROP TABLE IF EXISTS "AnimalHarvest";
+DROP TABLE IF EXISTS "AnimalMedicine";
+DROP TABLE IF EXISTS "Animals";
+DROP TABLE IF EXISTS "PackFeed";
+DROP TABLE IF EXISTS "PackGraze";
+DROP TABLE IF EXISTS "AnimalPack";
+DROP TABLE IF EXISTS "Observations";
+DROP TABLE IF EXISTS "FarmPlot";
+
+--** Create tables and relationship constraints **--
+
+--* Farm Plot and Observations*--
+DROP TABLE IF EXISTS "FarmPlot";
+CREATE TABLE "FarmPlot" (
+  "plotID" numeric PRIMARY KEY,
+  "name" text UNIQUE,
+  "type" text,
+  "loc" geometry
+);
+
+DROP TABLE IF EXISTS "Observations";
+CREATE TABLE "Observations" (
+  "obsID" numeric PRIMARY KEY,
+  "plot" text,
+  "date" date,
+  "notes" text,
+  "loc" geometry,
+    FOREIGN KEY ("plot")
+      REFERENCES "FarmPlot"("name")
+		ON DELETE SET NULL 
+);
+
+--** Animal Records **--
+DROP TABLE IF EXISTS "AnimalPack";
+CREATE TABLE "AnimalPack" (
+  "packID" numeric PRIMARY KEY,
+  "name" text UNIQUE,
+  "type" text
+);
+
+DROP TABLE IF EXISTS "PackGraze";
+CREATE TABLE "PackGraze" (
+  "grazeID" numeric PRIMARY KEY,
+  "pack" text,
+  "plot" text,
+  "start" timestamp,
+  "end" timestamp,
+  "loc" geometry,
+    FOREIGN KEY ("plot")
+      REFERENCES "FarmPlot"("name")
+		ON DELETE SET NULL,
+    FOREIGN KEY ("pack")
+      REFERENCES "AnimalPack"("name")
+		ON DELETE SET NULL 
+);
+
+DROP TABLE IF EXISTS "PackFeed";
+CREATE TABLE "PackFeed" (
+  "feedID" numeric PRIMARY KEY,
+  "pack" text,
+  "date" date,
+  "food" text,
+  "amt" numeric,
+    FOREIGN KEY ("pack")
+      REFERENCES "AnimalPack"("name")
+		ON DELETE SET NULL 
+);
+
+DROP TABLE IF EXISTS "Animals";
+CREATE TABLE "Animals" (
+  "anID" numeric PRIMARY KEY,
+  "type" text,
+  "name" text,
+  "breed" text,
+  "gender" text,
+  "bDay" date,
+  "arrivDay" date,
+  "starNumb" numeric,
+  "pack" text,
+  "prosDate" date,
+  "prosNumb" numeric,
+  "notes" text,
+    FOREIGN KEY ("pack")
+      REFERENCES "AnimalPack"("name")
+		ON DELETE SET NULL 
+);
+
+DROP TABLE IF EXISTS "AnimalMedicine";
+CREATE TABLE "AnimalMedicine" (
+  "treatID" numeric PRIMARY KEY,
+  "anID" numeric,
+  "date" date,
+  "treat" text,
+  "notes" text,
+    FOREIGN KEY ("anID")
+      REFERENCES "Animals"("anID")
+		ON DELETE SET NULL 
+);
+
+DROP TABLE IF EXISTS "AnimalHarvest";
+CREATE TABLE "AnimalHarvest" (
+  "harvID" numeric PRIMARY KEY,
+  "anID" numeric,
+  "date" date,
+  "prod" text,
+  "amt" numeric,
+  "unit" text,
+  "notes" text,
+    FOREIGN KEY ("anID")
+      REFERENCES "Animals"("anID")
+		ON DELETE SET NULL 
+);
+
+--** Plant Records **--
+DROP TABLE IF EXISTS "Species";
+CREATE TABLE "Species" (
+  "specID" numeric PRIMARY KEY,
+  "comName" text,
+  "variety" text,
+  "type" text,
+  "bloomSzn" text,
+  "notes" text
+);
+
+DROP TABLE IF EXISTS "SeedMix";
+CREATE TABLE "SeedMix" (
+  "sedMixID" numeric PRIMARY KEY,
+  "notes" text
+);
+
+DROP TABLE IF EXISTS "SpeciesMix";
+CREATE TABLE "SpeciesMix" (
+  "speMixID" numeric PRIMARY KEY,
+  "sedMix" numeric,
+  "specID" numeric,
+  "amt" numeric,
+    FOREIGN KEY ("specID")
+      REFERENCES "Species"("specID")
+		ON DELETE SET NULL,
+    FOREIGN KEY ("sedMix")
+      REFERENCES "SeedMix"("sedMixID")
+		ON DELETE SET NULL 
+);
+
+DROP TABLE IF EXISTS "PlantingEvent";
+CREATE TABLE "PlantingEvent" (
+  "plantID" numeric PRIMARY KEY,
+  "date" date,
+  "type" text,
+  "plot" text,
+  "species" numeric,
+  "sedMix" numeric,
+  "stage" text,
+  "numb" numeric,
+  "unit" text,
+  "endDate" date,
+  "notes" text,
+  "loc" geometry,
+    FOREIGN KEY ("plot")
+      REFERENCES "FarmPlot"("name")
+		ON DELETE SET NULL,
+    FOREIGN KEY ("sedMix")
+      REFERENCES "SeedMix"("sedMixID")
+		ON DELETE SET NULL,
+    FOREIGN KEY ("species")
+      REFERENCES "Species"("specID")
+		ON DELETE SET NULL 
+);
+
+DROP TABLE IF EXISTS "PlantPressure";
+CREATE TABLE "PlantPressure" (
+  "presID" numeric PRIMARY KEY,
+  "plantID" numeric,
+  "date" date,
+  "genPres" text,
+  "specPres" text,
+  "damage" text,
+  "notes" text,
+    FOREIGN KEY ("plantID")
+      REFERENCES "PlantingEvent"("plantID")
+		ON DELETE SET NULL 
+);
+
+DROP TABLE IF EXISTS "PlantHarvest";
+CREATE TABLE "PlantHarvest" (
+  "harvID" numeric PRIMARY KEY,
+  "plantID" numeric,
+  "date" date,
+  "units" text,
+  "amt" numeric,
+  "quality" text,
+  "notes" text,
+    FOREIGN KEY ("plantID")
+      REFERENCES "PlantingEvent"("plantID")
+		ON DELETE SET NULL 
+);
+
+--** Fertility Records **--
+DROP TABLE IF EXISTS "FertilityMaterial";
+CREATE TABLE "FertilityMaterial" (
+  "matID" numeric PRIMARY KEY,
+  "type" text,
+  "name" text,
+  "startDate" date,
+  "endDate" date,
+  "source" text,
+  "notes" text,
+  "loc" geometry
+);
+
+DROP TABLE IF EXISTS "MaterialMix";
+CREATE TABLE "MaterialMix" (
+  "matMixID" numeric PRIMARY KEY,
+  "notes" text
+);
+
+DROP TABLE IF EXISTS "FertilityMix";
+CREATE TABLE "FertilityMix" (
+  "fertMixID" numeric PRIMARY KEY,
+  "matID" numeric,
+  "matMix" numeric,
+  "amt" numeric,
+	FOREIGN KEY ("matID")
+      REFERENCES "FertilityMaterial"("matID")
+		ON DELETE SET NULL,
+    FOREIGN KEY ("matMix")
+      REFERENCES "MaterialMix"("matMixID")
+		ON DELETE SET NULL
+);
+
+DROP TABLE IF EXISTS "FertilitySpread";
+CREATE TABLE "FertilitySpread" (
+  "applicID" numeric PRIMARY KEY,
+  "date" date,
+  "plot" text,
+  "method" text,
+  "material" numeric,
+  "matMix" numeric,
+  "unit" text,
+  "amt" numeric,
+  "notes" text,
+  "loc" geometry,
+    FOREIGN KEY ("plot")
+      REFERENCES "FarmPlot"("name")
+		ON DELETE SET NULL,
+    FOREIGN KEY ("material")
+      REFERENCES "FertilityMaterial"("matID")
+		ON DELETE SET NULL,
+    FOREIGN KEY ("matMix")
+      REFERENCES "MaterialMix"("matMixID")
+		ON DELETE SET NULL 
+);
+
+DROP TABLE IF EXISTS "CompostTurn";
+CREATE TABLE "CompostTurn" (
+  "turnID" numeric PRIMARY KEY,
+  "pileID" numeric,
+  "date" date,
+  "wtrAmt" text,
+  "notes" text,
+    FOREIGN KEY ("pileID")
+      REFERENCES "FertilityMaterial"("matID")
+		ON DELETE SET NULL 
+);
+
+DROP TABLE IF EXISTS "CompostTemps";
+CREATE TABLE "CompostTemps" (
+  "tempID" numeric PRIMARY KEY,
+  "pileID" numeric,
+  "date" date,
+  "high" numeric,
+  "low" numeric,
+  "avg" numeric,
+  "moisture" text,
+  "notes" text,
+    FOREIGN KEY ("pileID")
+      REFERENCES "FertilityMaterial"("matID")
+		ON DELETE SET NULL 
+);
+
+
+
+
+
