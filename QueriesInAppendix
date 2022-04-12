@@ -1,0 +1,92 @@
+--*** Queries In Appendix ***--
+--*** Queries In Thesis ***--
+--Database Queries --
+/* Query 1: Shows all records from Animals table.
+SELECT * FROM "Animals" ;
+*/
+
+/* Query 2: Shows certain columns from Animals table.
+SELECT an."type", an."name", an."breed" 
+FROM "Animals" an ; 
+*/
+
+/* Query 3: Shows certain columns from Animal table that are cows.
+--SELECT an."type", an."name", an."breed" FROM "Animals" an WHERE an.type = 'cow' ORDER BY an."arrivDay" ASC ;
+SELECT an."type", an."name", an."breed" 
+FROM "Animals" an
+WHERE an.type = 'cow';
+*/
+
+-- Relational Queries --
+
+/* Query 4: Shows name, breed, and medical treatments of cows.
+SELECT an.name, an.breed, am.treat 
+FROM "Animals" an JOIN "AnimalMedicine" am 
+	ON an."anID" = am."anID"
+WHERE an."type" = 'cow';
+*/
+
+-- Temporal Queries --
+
+/* Query 5: Shows variety, comon name, and plant date of garden crops planted in first 2 months of 2018.
+SELECT sp."variety", sp."comName", pe."date" as planted
+FROM "Species" sp JOIN "PlantingEvent" pe 
+	ON pe."species" = sp."specID"
+WHERE pe."date" BETWEEN '2018-01-01' AND '2018-03-01'
+	AND sp."type" = 'garden';
+*/
+
+/* Query 6: Finds age of all cows currently on farm (nov 15 2019) in weeks.  
+SELECT an."name", 
+	('2019-11-15'- an."bDay")/7 as weeksOld
+FROM "Animals" an
+WHERE an."type" = 'cow' 
+	AND an."prosDate" IS NULL
+	AND ('2019-11-15'- an."arrivDay")>= 0;
+*/
+
+-- Spatial Queries --
+
+/* Query 7: Shows name, type and location of all farm plots.
+SELECT fp."name", fp."type", fp."loc" 
+FROM "FarmPlot" fp;
+*/
+
+/* Query 8: Finds area (acres) and perimeter (meters) of each farm plot.
+SELECT n."name", 
+	ST_AREA(n.loc::geography)*0.00024710538 as acres,
+	ST_Perimeter(n."loc"::geography)as meters, 
+	n."loc" 
+FROM "FarmPlot" n;
+*/
+
+/* Query 9: Finds current location of animal packs (4/16/19).
+SELECT  ap."name" pack, fp."name" location, fp."loc"
+FROM "AnimalPack" ap JOIN "PackGraze" pg ON ap."name" = pg."pack"
+	JOIN "FarmPlot" fp ON pg."plot" = fp."name"
+WHERE ('2019-04-16' BETWEEN pg."start" AND pg."end")
+	OR ('2019-04-16' <= pg."start" AND pg."end" IS NULL);
+*/
+
+/* Query 10: Shows graze duration of chickens and cows per plot in 2018, compost spread per acre in 2018, and 
+			 number of times planted in 2018. 
+WITH gz as ( SELECT pg."plot",
+			justify_hours (SUM( CASE WHEN ap."type" LIKE '%chickens' THEN (pg."end" - pg."start") ELSE '0h' END)) AS "Chicken Graze",
+			justify_hours(SUM( CASE WHEN ap."type" = 'cows' THEN (pg."end" - pg."start") ELSE '0h' END)) AS "Cow Graze"
+		FROM "PackGraze" pg JOIN "AnimalPack" ap on pg."pack" = ap."name" 
+		WHERE pg."start" BETWEEN '2018-01-01' AND '2018-12-31'
+		GROUP BY pg."plot"), 
+	cmt as ( SELECT  frs."plot", 
+				SUM ( frs."amt" * CASE frs."unit" WHEN 'tons' THEN 2000 WHEN 'wheelbarrows' THEN 175 WHEN 'buckets' THEN 25 ELSE 0 END
+					/ (ST_AREA(fp."loc"::geography)*0.00024710538 )) AS "Compost lbs/acre"								
+			FROM "FertilitySpread" frs JOIN "FarmPlot" fp ON frs."plot" = fp."name"
+			WHERE frs."date" BETWEEN '2018-01-01' AND '2018-12-31'
+			GROUP BY frs."plot"),
+	ar as (SELECT * FROM "FarmPlot" fp),
+	ptd as (SELECT pe."plot", COUNT( pe."plantID") AS "Times Planted" 
+			FROM "PlantingEvent" pe
+			WHERE pe."date" BETWEEN '2018-01-01' AND '2018-12-31'
+			GROUP BY pe."plot")		
+SELECT ar."name", gz."Cow Graze", gz."Chicken Graze", cmt."Compost lbs/acre", ptd."Times Planted", ar."loc"
+FROM ar FULL JOIN gz on ar."name" = gz."plot" FULL JOIN cmt ON ar."name" = cmt."plot" FULL JOIN ptd ON ar."name" = ptd."plot";
+*/
