@@ -5,4 +5,4 @@ Building a Spatial Database for Agricultural Record Keeping and Management on a 
 
 This repository holds the code, data, and metadata used to build and demonstrate a PostgreSQL (with PostGIS) spatial database that holds agricultural records.
 
-See full thesis document attached or contact Philip Hess (philipthess@gmail.com) with any questions.
+See full thesis document (pending publication) or contact Philip Hess (philipthess@gmail.com) with any questions.
